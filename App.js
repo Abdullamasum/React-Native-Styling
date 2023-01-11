@@ -1,30 +1,26 @@
-import {useEffect, useState} from 'react';
-import {FlatList, StyleSheet} from 'react-native';
-import ListItem from './ListItem';
+import {StatusBar} from 'expo-status-bar';
+import {StyleSheet, SafeAreaView} from 'react-native';
+import List from './components/List';
 
-const List = () => {
-  const url =
-    'https://raw.githubusercontent.com/mattpe/wbma/master/docs/assets/test.json';
-  const [mediaArray, setMediaArray] = useState([]);
-
-  const loadMedia = async () => {
-    const response = await fetch(url);
-    const json = await response.json();
-    setMediaArray(json);
-  };
-
-  useEffect(() => {
-    loadMedia();
-  }, []);
-
-  console.log('List, mediaArray', mediaArray);
-
+const App = () => {
+  //console.log('App starting!')
   return (
-    <FlatList
-      data={mediaArray}
-      renderItem={({item}) => <ListItem singleMedia={item} />}
-    />
+    <>
+      <SafeAreaView style={styles.container}>
+        <List />
+      </SafeAreaView>
+      <StatusBar style="auto" />
+    </>
   );
 };
 
-export default List;
+export default App;
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
