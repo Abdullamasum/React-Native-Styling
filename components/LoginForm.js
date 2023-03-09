@@ -1,33 +1,36 @@
-import React, {useContext} from 'react';
-import {MainContext} from '../contexts/MainContext';
+import React, {useState} from 'react';
+import {useContext} from 'react';
+import {View} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {MainContext} from '../contexts/MainContext';
+import {secondaryColor} from './ColorPalette';
 import {useAuthentication} from '../hooks/ApiHooks';
-import {Button, Text, TextInput, View} from 'react-native';
 import {Controller, useForm} from 'react-hook-form';
+import {Input, Button, Text} from '@rneui/base';
+import {CardDivider} from '@rneui/base/dist/Card/Card.Divider';
 
-const LoginForm = () => {
+const LoginForm = (props) => {
   const {setIsLoggedIn, setUser} = useContext(MainContext);
   const {postLogin} = useAuthentication();
   const {
     control,
     handleSubmit,
     formState: {errors},
-  } = useForm({
-    defaultValues: {username: '', password: ''},
-  });
+  } = useForm({defaultValues: {username: '', password: ''}});
+  const [displayPassword, changeDisplayPassword] = useState(false);
 
   const logIn = async (loginData) => {
-    console.log('Login button pressed', loginData);
-    // const data = {username: 'ilkkamtk', password: 'q1w2e3r4'};
+    console.log('Logging in!');
+    console.log(loginData);
     try {
       const loginResult = await postLogin(loginData);
-      console.log('logIn', loginResult);
+      console.log('LogIn, logIn', loginResult);
       await AsyncStorage.setItem('userToken', loginResult.token);
       setUser(loginResult.user);
       setIsLoggedIn(true);
     } catch (error) {
-      console.error('logIn', error);
-      // TODO: notify user about failed login attempt
+      console.error('LogIn, logIn: ', error);
+      // TODO: notify user about failed login
     }
   };
 
@@ -36,37 +39,53 @@ const LoginForm = () => {
       <Text>Login Form</Text>
       <Controller
         control={control}
-        rules={{required: true, minLength: 3}}
+        rules={{
+          required: {value: true, message: 'Required'},
+        }}
         render={({field: {onChange, onBlur, value}}) => (
-          <TextInput
+          <Input
             placeholder="Username"
-            onBlur={onBlur}
+            autoCapitalize="none"
+            onblur={onBlur}
             onChangeText={onChange}
             value={value}
+            errorMessage={errors.username && errors.username.message}
           />
         )}
         name="username"
       />
-      {errors.username?.type === 'required' && <Text>is required</Text>}
-      {errors.username?.type === 'minLength' && (
-        <Text>min length is 3 characters</Text>
-      )}
+
       <Controller
         control={control}
-        rules={{required: true, minLength: 5}}
+        rules={{
+          required: {value: true, message: 'Required'},
+        }}
         render={({field: {onChange, onBlur, value}}) => (
-          <TextInput
+          <Input
             placeholder="Password"
-            onBlur={onBlur}
+            secureTextEntry={!displayPassword}
+            onblur={onBlur}
             onChangeText={onChange}
             value={value}
-            secureTextEntry={true}
+            errorMessage={errors.password && errors.password.message}
           />
         )}
         name="password"
       />
-      {errors.password && <Text>Password (min. 5 chars) is required .</Text>}
-      <Button title="Sign in!" onPress={handleSubmit(logIn)} />
+
+      <Button
+        color={secondaryColor}
+        title={displayPassword ? 'Hide Password' : 'Show Password'}
+        onPress={() => {
+          changeDisplayPassword(!displayPassword);
+        }}
+      />
+      <CardDivider />
+      <Button
+        color={secondaryColor}
+        title="Sign in"
+        onPress={handleSubmit(logIn)}
+      />
     </View>
   );
 };

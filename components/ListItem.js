@@ -1,50 +1,36 @@
-import {Image, StyleSheet, View, Text, TouchableOpacity} from 'react-native';
+import {NativeElementsStyles} from './Styles';
+import {TouchableOpacity} from 'react-native';
 import PropTypes from 'prop-types';
 import {uploadsUrl} from '../utils/variables';
+import {Card, Text} from '@rneui/themed';
+import {CardDivider} from '@rneui/base/dist/Card/Card.Divider';
+import {CardImage} from '@rneui/base/dist/Card/Card.Image';
+import {CardTitle} from '@rneui/base/dist/Card/Card.Title';
 
-const ListItem = ({singleMedia, navigation}) => {
-  const item = singleMedia;
+const ListItem = (props) => {
+  const item = props.singleMedia;
+  const navigation = props.navigation;
+
   return (
     <TouchableOpacity
-      style={styles.row}
       onPress={() => {
         navigation.navigate('Single', item);
       }}
     >
-      <View style={styles.box}>
-        <Image
-          style={styles.image}
+      <Card>
+        <CardTitle>{item.title}</CardTitle>
+        <CardDivider />
+        <CardImage
+          style={NativeElementsStyles.listItemImage}
           source={{uri: uploadsUrl + item.thumbnails?.w160}}
         />
-      </View>
-      <View style={styles.box}>
-        <Text style={styles.listTitle}>{item.title}</Text>
+        <CardDivider />
+        <CardDivider />
         <Text>{item.description}</Text>
-      </View>
+      </Card>
     </TouchableOpacity>
   );
 };
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    backgroundColor: '#ccc',
-    marginBottom: 10,
-  },
-  box: {
-    flex: 1,
-    padding: 10,
-  },
-  image: {
-    flex: 1,
-    minHeight: 100,
-  },
-  listTitle: {
-    fontWeight: 'bold',
-    fontSize: 20,
-    paddingBottom: 15,
-  },
-});
 
 ListItem.propTypes = {
   singleMedia: PropTypes.object,

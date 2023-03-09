@@ -1,50 +1,109 @@
-import {useEffect, useState} from 'react';
-import {baseUrl} from '../utils/variables';
+import {useContext, useEffect, useState} from 'react';
+import {MainContext} from '../contexts/MainContext';
+import {
+  appTag,
+  loginUrl,
+  mediaUrl,
+  tagsUrl,
+  usersUrl,
+} from '../utils/variables';
 
 const doFetch = async (url, options) => {
   const response = await fetch(url, options);
   const json = await response.json();
+
   if (!response.ok) {
     const message = json.error
       ? `${json.message}: ${json.error}`
       : json.message;
-    throw new Error(message || response.statusText);
+
+    throw new Error(message || `${response.status}: ${response.statusText}`);
   }
+
   return json;
 };
 
-const useMedia = () => {
+const useMedia = (showAllMedia = false) => {
   const [mediaArray, setMediaArray] = useState([]);
+  const {update} = useContext(MainContext);
+  const {getFilesByTag, postTag} = useTag();
 
   const loadMedia = async () => {
+    //  try/catch on await
     try {
-      const response = await fetch(baseUrl + 'media');
-      const json = await response.json();
+      let json;
+
+      if (showAllMedia) {
+        const response = await fetch(mediaUrl);
+        json = await response.json();
+      } else {
+        json = await getFilesByTag(appTag);
+        json = json.reverse();
+      }
+      //  Get the extra data including the thumbnails of every file got from the server.
       const media = await Promise.all(
         json.map(async (file) => {
-          const fileResponse = await fetch(baseUrl + 'media/' + file.file_id);
+          const fileResponse = await fetch(mediaUrl + file.file_id);
           return await fileResponse.json();
         })
       );
 
       setMediaArray(media);
     } catch (error) {
-      console.error('List, loadMedia', error);
+      console.error('ApiHooks, loadMedia', error);
+    }
+  };
+
+  const postMedia = async (fileData, token) => {
+    const options = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        'x-access-token': token,
+      },
+      body: fileData,
+    };
+    try {
+      return await doFetch(mediaUrl, options);
+    } catch (error) {
+      throw new Error('ApiHooks, postMedia: ' + error.message);
+    }
+  };
+
+  const postMediaWithAppTag = async (fileData, token) => {
+    const options = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        'x-access-token': token,
+      },
+      body: fileData,
+    };
+    try {
+      const result = await doFetch(mediaUrl, options);
+
+      const tagData = {file_id: result.file_id, tag: appTag};
+
+      // TODO: Post Tag with the gotten file_id
+      const tagResult = await postTag(tagData, token);
+      console.log('Apihooks, postMediaWithAppTag: ' + tagResult);
+
+      return result;
+    } catch (error) {
+      throw new Error('ApiHooks, postMediaWithAppTag: ' + error.message);
     }
   };
 
   useEffect(() => {
     loadMedia();
-  }, []);
+  }, [update]); // Load all media after upload
 
-  return {mediaArray};
+  return {mediaArray, postMedia, postMediaWithAppTag};
 };
 
 const useAuthentication = () => {
   const postLogin = async (userCredentials) => {
-    // user credentials format: {username: 'someUsername', password: 'somePassword'}
     const options = {
-      // TODO: add method, headers and body for sending json data with POST
       method: 'post',
       headers: {
         'Content-Type': 'application/json',
@@ -52,44 +111,119 @@ const useAuthentication = () => {
       body: JSON.stringify(userCredentials),
     };
     try {
-      // TODO: use fetch to send request to login endpoint and return the result as json, handle errors with try/catch and response.ok
-      return await doFetch(baseUrl + 'login', options);
+      return await doFetch(loginUrl, options);
     } catch (error) {
-      throw new Error('postLogin: ' + error.message);
+      throw new Error('ApiHooks, postLogin: ' + error.message);
     }
   };
+
   return {postLogin};
 };
 
-// https://media.mw.metropolia.fi/wbma/docs/#api-User
 const useUser = () => {
   const getUserByToken = async (token) => {
-    // call https://media.mw.metropolia.fi/wbma/docs/#api-User-CheckUserName
     const options = {
       method: 'GET',
-      headers: {'x-access-token': token},
+      headers: {
+        'Content-Type': 'application/json',
+        'x-access-token': token,
+      },
     };
     try {
-      return await doFetch(baseUrl + 'users/user', options);
+      return await doFetch(usersUrl + 'user', options);
     } catch (error) {
-      throw new Error('checkUser: ' + error.message);
+      throw new Error('ApiHooks, getUserByToken: ' + error.message);
     }
   };
+
   const postUser = async (userData) => {
     const options = {
-      method: 'post',
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(userData),
     };
     try {
-      return await doFetch(baseUrl + 'users', options);
+      return await doFetch(usersUrl, options);
     } catch (error) {
-      throw new Error('postUser: ' + error.message);
+      throw new Error('ApiHooks, postUser: ' + error.message);
     }
   };
-  return {getUserByToken, postUser};
+
+  const checkUsername = async (username) => {
+    const options = {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    };
+    try {
+      const result = await doFetch(usersUrl + 'username/' + username, options);
+      return result.available;
+    } catch (error) {
+      throw new Error('ApiHooks, checkUser: ' + error.message);
+    }
+  };
+
+  const changeUser = async (data) => {
+    if (data.token === null) {
+      console.error('Apihooks, changeUser: Did not pass a token!');
+      return;
+    }
+
+    const token = data.token;
+    delete data.token;
+
+    const options = {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-access-token': token,
+      },
+      body: JSON.stringify(data),
+    };
+    try {
+      return await doFetch(usersUrl, options);
+    } catch (error) {
+      throw new Error('ApiHooks, changeUser: ' + error.message);
+    }
+  };
+
+  return {getUserByToken, postUser, checkUsername, changeUser};
 };
 
-export {useMedia, useAuthentication, useUser};
+const useTag = () => {
+  const getFilesByTag = async (tag) => {
+    try {
+      return await doFetch(tagsUrl + tag);
+    } catch (error) {
+      throw new Error('ApiHooks, getFilesByTag: ' + error.message);
+    }
+  };
+
+  const postTag = async (data, token) => {
+    if (token === null) {
+      console.error('Apihooks, postTag: Did not pass a token!');
+      return;
+    }
+
+    const options = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-access-token': token,
+      },
+      body: JSON.stringify(data),
+    };
+    try {
+      return await doFetch(tagsUrl, options);
+    } catch (error) {
+      throw new Error('ApiHooks, postTag: ' + error.message);
+    }
+  };
+
+  return {getFilesByTag, postTag};
+};
+
+export {useMedia, useAuthentication, useUser, useTag};
