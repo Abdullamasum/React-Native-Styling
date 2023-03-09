@@ -5,6 +5,6 @@ const loginUrl = baseUrl + 'login/';
 const usersUrl = baseUrl + 'users/';
 const tagsUrl = baseUrl + 'tags/';
 
-const appTag = 'juliusExampleApp';
+const appTag = 'abdullaMyApp';
 
 export {baseUrl, uploadsUrl, mediaUrl, loginUrl, usersUrl, tagsUrl, appTag};

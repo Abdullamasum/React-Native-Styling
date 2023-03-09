@@ -2,6 +2,7 @@ import {useContext, useEffect, useState} from 'react';
 import {MainContext} from '../contexts/MainContext';
 import {
   appTag,
+  favouritesUrl,
   loginUrl,
   mediaUrl,
   tagsUrl,
@@ -23,9 +24,9 @@ const doFetch = async (url, options) => {
   return json;
 };
 
-const useMedia = (showAllMedia = false) => {
+const useMedia = (showAllMedia = false, myFilesOnly = false) => {
   const [mediaArray, setMediaArray] = useState([]);
-  const {update} = useContext(MainContext);
+  const {update, user} = useContext(MainContext);
   const {getFilesByTag, postTag} = useTag();
 
   const loadMedia = async () => {
@@ -33,6 +34,7 @@ const useMedia = (showAllMedia = false) => {
     try {
       let json;
 
+      // Optionally show all the recent files in the server
       if (showAllMedia) {
         const response = await fetch(mediaUrl);
         json = await response.json();
@@ -40,6 +42,16 @@ const useMedia = (showAllMedia = false) => {
         json = await getFilesByTag(appTag);
         json = json.reverse();
       }
+
+      // Filter only to user's files if specified
+      if (myFilesOnly) {
+        json = json.filter((file) => {
+          if (file.user_id === user.user_id) {
+            return file;
+          }
+        });
+      }
+
       //  Get the extra data including the thumbnails of every file got from the server.
       const media = await Promise.all(
         json.map(async (file) => {
@@ -94,17 +106,47 @@ const useMedia = (showAllMedia = false) => {
     }
   };
 
+  const deleteMedia = async (fileId, token) => {
+    const options = {
+      method: 'DELETE',
+      headers: {
+        'x-access-token': token,
+      },
+    };
+    try {
+      return await doFetch(mediaUrl + fileId, options);
+    } catch (error) {
+      throw new Error('ApiHooks, deleteMedia: ' + error.message);
+    }
+  };
+
+  const putMedia = async (fileId, data, token) => {
+    const options = {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-access-token': token,
+      },
+      body: JSON.stringify(data),
+    };
+    try {
+      return await doFetch(mediaUrl + fileId, options);
+    } catch (error) {
+      throw new Error('ApiHooks, putMedia: ' + error.message);
+    }
+  };
+
   useEffect(() => {
     loadMedia();
   }, [update]); // Load all media after upload
 
-  return {mediaArray, postMedia, postMediaWithAppTag};
+  return {mediaArray, postMedia, postMediaWithAppTag, deleteMedia, putMedia};
 };
 
 const useAuthentication = () => {
   const postLogin = async (userCredentials) => {
     const options = {
-      method: 'post',
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -190,7 +232,22 @@ const useUser = () => {
     }
   };
 
-  return {getUserByToken, postUser, checkUsername, changeUser};
+  const getUserById = async (id, token) => {
+    const options = {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-access-token': token,
+      },
+    };
+    try {
+      return await doFetch(usersUrl + id, options);
+    } catch (error) {
+      throw new Error('ApiHooks, getUserById: ' + error.message);
+    }
+  };
+
+  return {getUserByToken, postUser, checkUsername, changeUser, getUserById};
 };
 
 const useTag = () => {
@@ -226,4 +283,53 @@ const useTag = () => {
   return {getFilesByTag, postTag};
 };
 
-export {useMedia, useAuthentication, useUser, useTag};
+const useFavourite = () => {
+  const postFavourite = async (fileId, token) => {
+    const options = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-access-token': token,
+      },
+      body: JSON.stringify({file_id: fileId}),
+    };
+    try {
+      return await doFetch(favouritesUrl, options);
+    } catch (error) {
+      throw new Error('ApiHooks, postFavourite: ' + error.message);
+    }
+  };
+
+  const getFavouritesByFileId = async (fileId) => {
+    try {
+      return await doFetch(favouritesUrl + 'file/' + fileId);
+    } catch (error) {
+      throw new Error('ApiHooks, getFavouritesByFileId: ' + error.message);
+    }
+  };
+
+  const getFavouritesByUser = async (token) => {};
+
+  const deleteFavourite = async (fileId, token) => {
+    const options = {
+      method: 'DELETE',
+      headers: {
+        'x-access-token': token,
+      },
+    };
+    try {
+      return await doFetch(favouritesUrl + 'file/' + fileId, options);
+    } catch (error) {
+      throw new Error('ApiHooks, deleteFavourite: ' + error.message);
+    }
+  };
+
+  return {
+    postFavourite,
+    getFavouritesByFileId,
+    getFavouritesByUser,
+    deleteFavourite,
+  };
+};
+
+export {useMedia, useAuthentication, useUser, useTag, useFavourite};
