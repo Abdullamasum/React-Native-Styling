@@ -1,2 +1,2 @@
-# wbma23-myApp
-# React Native Assignment
+# Some Styling Component with React Native
+
